@@ -1,0 +1,5 @@
+{
+  "name": "AI Use Case Classifier (EU AI Act)",
+  "description": "An interactive, agent-based tool to classify AI use cases against the EU AI Act, featuring a step-by-step flow, human-in-the-loop approvals, and a visual workflow diagram.",
+  "requestFramePermissions": []
+}
