@@ -41,8 +41,10 @@ const FinalReport: React.FC<FinalReportProps> = ({ riskLevel, summary, mitigatio
     const pageWidth = doc.internal.pageSize.width;
     const leftMargin = 60;
     const rightMargin = 60;
+    const topMargin = 80;
+    const bottomMargin = 60;
     const contentWidth = pageWidth - leftMargin - rightMargin;
-    let y = 0;
+    let y = topMargin;
 
     const addHeader = (text: string = 'EU AI Act - Risk Analysis Report') => {
         doc.setFontSize(9);
@@ -59,94 +61,116 @@ const FinalReport: React.FC<FinalReportProps> = ({ riskLevel, summary, mitigatio
             doc.text(`Page ${i} of ${pageCount}`, pageWidth - rightMargin, pageHeight - 30, { align: 'right' });
         }
     };
+
+    const addTextBlock = (text: string, fontSize: number = 10, lineHeight: number = 14) => {
+        // Clean and normalize text
+        const cleanText = text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+        
+        // Split into lines that fit the content width
+        const lines = doc.splitTextToSize(cleanText, contentWidth);
+        
+        // Check if we need a new page
+        if (y + (lines.length * lineHeight) > pageHeight - bottomMargin) {
+            doc.addPage();
+            addHeader();
+            y = topMargin;
+        }
+        
+        // Add each line
+        lines.forEach((line: string) => {
+            doc.text(line, leftMargin, y);
+            y += lineHeight;
+        });
+        
+        return y;
+    };
     
     // --- Title Page ---
     addHeader();
+    y = 140;
+    
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);
     doc.setTextColor(31, 41, 55);
-    doc.text('EU AI Act Compliance Report', pageWidth / 2, 140, { align: 'center' });
+    doc.text('EU AI Act Compliance Report', pageWidth / 2, y, { align: 'center' });
+    y += 60;
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(12);
     doc.setTextColor(80, 80, 80);
-    doc.text('Analysis for Use Case:', pageWidth / 2, 200, { align: 'center' });
+    doc.text('Analysis for Use Case:', pageWidth / 2, y, { align: 'center' });
+    y += 25;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(0, 0, 0);
     const useCaseTitleLines = doc.splitTextToSize(useCase.title, contentWidth - 40);
-    doc.text(useCaseTitleLines, pageWidth / 2, 225, { align: 'center' });
+    useCaseTitleLines.forEach((line: string) => {
+        doc.text(line, pageWidth / 2, y, { align: 'center' });
+        y += 22;
+    });
+    y += 10;
     
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     const descriptionLines = doc.splitTextToSize(useCase.description, contentWidth - 100);
-    doc.text(descriptionLines, pageWidth / 2, 260, { align: 'center' });
+    descriptionLines.forEach((line: string) => {
+        doc.text(line, pageWidth / 2, y, { align: 'center' });
+        y += 15;
+    });
+    y += 30;
 
     doc.setDrawColor(200, 200, 200);
-    doc.line(leftMargin, 350, pageWidth - rightMargin, 350);
+    doc.setLineWidth(0.5);
+    doc.line(leftMargin, y, pageWidth - rightMargin, y);
+    y += 40;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(80, 80, 80);
-    doc.text('Final Risk Classification:', pageWidth / 2, 390, { align: 'center' });
+    doc.text('Final Risk Classification:', pageWidth / 2, y, { align: 'center' });
+    y += 35;
 
     doc.setFontSize(28);
     doc.setTextColor(...styles.pdfColor);
-    doc.text(riskLevel, pageWidth / 2, 425, { align: 'center' });
+    doc.text(riskLevel, pageWidth / 2, y, { align: 'center' });
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(150);
     doc.text(`Report generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, pageHeight - 80, { align: 'center' });
 
-    // --- New Page for Details ---
+    // --- Executive Summary Page ---
     doc.addPage();
     addHeader();
-    y = 80;
+    y = topMargin;
     
-    const addSection = (title: string, content: string) => {
-        if (!content) return;
-        
-        // Clean HTML tags and normalize whitespace
-        const cleanContent = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-        const textLines = doc.splitTextToSize(cleanContent, contentWidth);
-        const lineHeight = 14;
-        const sectionHeight = (textLines.length * lineHeight) + 60; 
-        
-        if (y + sectionHeight > pageHeight - 80) {
-            doc.addPage();
-            addHeader();
-            y = 80;
-        }
-        
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.setTextColor(0);
-        doc.text(title, leftMargin, y);
-        doc.setDrawColor(200);
-        doc.line(leftMargin, y + 8, pageWidth - rightMargin, y + 8);
-        y += 35;
-        
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(0);
+    doc.text('Executive Summary', leftMargin, y);
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.5);
+    doc.line(leftMargin, y + 8, pageWidth - rightMargin, y + 8);
+    y += 35;
+    
+    if (summary) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
         doc.setTextColor(50);
-        doc.text(textLines, leftMargin, y, { 
-            lineHeightFactor: 1.4,
-            align: 'justify',
-            maxWidth: contentWidth
-        });
-        y += textLines.length * lineHeight + 40;
-    };
+        const lineHeight = 14;
+        y = addTextBlock(summary, 10, lineHeight);
+        y += 20;
+    }
 
-    addSection('Executive Summary', summary);
-
-    // Detailed Analysis Section
-    if (y + 40 > pageHeight - 80) { 
+    // --- Detailed Analysis Section ---
+    if (y + 60 > pageHeight - bottomMargin) { 
         doc.addPage(); 
         addHeader(); 
-        y = 80; 
+        y = topMargin; 
+    } else {
+        y += 20;
     }
     
     doc.setFont('helvetica', 'bold');
@@ -154,45 +178,64 @@ const FinalReport: React.FC<FinalReportProps> = ({ riskLevel, summary, mitigatio
     doc.setTextColor(0);
     doc.text('Detailed Step-by-Step Analysis', leftMargin, y);
     doc.setDrawColor(200);
+    doc.setLineWidth(0.5);
     doc.line(leftMargin, y + 8, pageWidth - rightMargin, y + 8);
     y += 35;
     
     results.forEach(result => {
         const stepContent = [
             `AI Suggestion Rationale: ${result.aiAnalysis}`,
+            '',
             `Human Decision: ${result.humanDecision}`,
-            result.humanRationale ? `Human Rationale for Disagreement: ${result.humanRationale}` : ''
-        ].filter(Boolean).join('\n\n');
+            result.humanRationale ? `\nHuman Rationale for Disagreement: ${result.humanRationale}` : ''
+        ].filter(Boolean).join(' ');
 
-        const cleanStepContent = stepContent.replace(/\s+/g, ' ').trim();
-        const textLines = doc.splitTextToSize(cleanStepContent, contentWidth - 20);
-        const lineHeight = 12;
-        const sectionHeight = (textLines.length * lineHeight) + 60;
-        
-        if (y + sectionHeight > pageHeight - 80) {
+        const stepHeight = 80 + (stepContent.length / 4);
+        if (y + stepHeight > pageHeight - bottomMargin) {
             doc.addPage();
             addHeader();
-            y = 80;
+            y = topMargin;
         }
         
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
         doc.setTextColor(0);
         doc.text(result.stepName, leftMargin, y);
-        y += 25;
+        y += 20;
         
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.setTextColor(80);
-        doc.text(textLines, leftMargin + 10, y, { 
-            lineHeightFactor: 1.4,
-            align: 'justify',
-            maxWidth: contentWidth - 20
-        });
-        y += textLines.length * lineHeight + 30;
+        const lineHeight = 12;
+        y = addTextBlock(stepContent, 9, lineHeight);
+        y += 25;
     });
 
-    addSection('Mitigation Suggestions', mitigation);
+    // --- Mitigation Suggestions ---
+    if (mitigation) {
+        if (y + 60 > pageHeight - bottomMargin) { 
+            doc.addPage(); 
+            addHeader(); 
+            y = topMargin; 
+        } else {
+            y += 20;
+        }
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor(0);
+        doc.text('Mitigation Suggestions', leftMargin, y);
+        doc.setDrawColor(200);
+        doc.setLineWidth(0.5);
+        doc.line(leftMargin, y + 8, pageWidth - rightMargin, y + 8);
+        y += 35;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(50);
+        const lineHeight = 14;
+        addTextBlock(mitigation, 10, lineHeight);
+    }
     
     addFooter();
     const fileName = `EU-AI-Act-Report_${useCase.title.replace(/\s/g, '_')}.pdf`;
@@ -206,7 +249,7 @@ const FinalReport: React.FC<FinalReportProps> = ({ riskLevel, summary, mitigatio
         <div className={`p-6 rounded-2xl shadow-lg border bg-slate-800 border-slate-700 flex flex-col items-center justify-center min-h-[400px]`}>
             <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 * 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             <h3 className="text-lg font-bold text-white mt-4">Generating Final Report...</h3>
             <p className="text-slate-400">The AI agent is compiling the final assessment.</p>
