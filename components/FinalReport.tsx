@@ -62,24 +62,36 @@ const FinalReport: React.FC<FinalReportProps> = ({ riskLevel, summary, mitigatio
         }
     };
 
-    const addTextBlock = (text: string, fontSize: number = 10, lineHeight: number = 14) => {
-        // Clean and normalize text
+    const addTextBlock = (text: string, fontSize: number = 10, lineHeight: number = 14, addSpacingAfter: number = 15) => {
+        doc.setFontSize(fontSize);
+        
+        // Clean and normalize text - remove HTML tags and normalize whitespace
         const cleanText = text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
         
-        // Split into lines that fit the content width
-        const lines = doc.splitTextToSize(cleanText, contentWidth);
+        // Split text into paragraphs first
+        const paragraphs = cleanText.split(/\n\n+/).filter(p => p.trim());
         
-        // Check if we need a new page
-        if (y + (lines.length * lineHeight) > pageHeight - bottomMargin) {
-            doc.addPage();
-            addHeader();
-            y = topMargin;
-        }
-        
-        // Add each line
-        lines.forEach((line: string) => {
-            doc.text(line, leftMargin, y);
-            y += lineHeight;
+        paragraphs.forEach((paragraph, idx) => {
+            // Split paragraph into lines that fit the content width
+            const lines = doc.splitTextToSize(paragraph.trim(), contentWidth);
+            
+            // Check if we need a new page
+            if (y + (lines.length * lineHeight) + addSpacingAfter > pageHeight - bottomMargin) {
+                doc.addPage();
+                addHeader();
+                y = topMargin;
+            }
+            
+            // Add each line
+            lines.forEach((line: string) => {
+                doc.text(line, leftMargin, y);
+                y += lineHeight;
+            });
+            
+            // Add spacing between paragraphs (except after last one)
+            if (idx < paragraphs.length - 1) {
+                y += addSpacingAfter;
+            }
         });
         
         return y;
@@ -147,94 +159,117 @@ const FinalReport: React.FC<FinalReportProps> = ({ riskLevel, summary, mitigatio
     y = topMargin;
     
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(0);
+    doc.setFontSize(18);
+    doc.setTextColor(0, 0, 0);
     doc.text('Executive Summary', leftMargin, y);
+    y += 5;
     doc.setDrawColor(200);
     doc.setLineWidth(0.5);
-    doc.line(leftMargin, y + 8, pageWidth - rightMargin, y + 8);
-    y += 35;
+    doc.line(leftMargin, y, pageWidth - rightMargin, y);
+    y += 25;
     
     if (summary) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
-        doc.setTextColor(50);
-        const lineHeight = 14;
-        y = addTextBlock(summary, 10, lineHeight);
-        y += 20;
+        doc.setTextColor(0, 0, 0);
+        y = addTextBlock(summary, 10, 15, 12);
     }
 
     // --- Detailed Analysis Section ---
+    y += 30;
     if (y + 60 > pageHeight - bottomMargin) { 
         doc.addPage(); 
         addHeader(); 
         y = topMargin; 
-    } else {
-        y += 20;
     }
     
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(0);
+    doc.setFontSize(18);
+    doc.setTextColor(0, 0, 0);
     doc.text('Detailed Step-by-Step Analysis', leftMargin, y);
+    y += 5;
     doc.setDrawColor(200);
     doc.setLineWidth(0.5);
-    doc.line(leftMargin, y + 8, pageWidth - rightMargin, y + 8);
-    y += 35;
+    doc.line(leftMargin, y, pageWidth - rightMargin, y);
+    y += 25;
     
-    results.forEach(result => {
-        const stepContent = [
-            `AI Suggestion Rationale: ${result.aiAnalysis}`,
-            '',
-            `Human Decision: ${result.humanDecision}`,
-            result.humanRationale ? `\nHuman Rationale for Disagreement: ${result.humanRationale}` : ''
-        ].filter(Boolean).join(' ');
-
-        const stepHeight = 80 + (stepContent.length / 4);
-        if (y + stepHeight > pageHeight - bottomMargin) {
+    results.forEach((result, index) => {
+        // Check if we need a new page for this step
+        const estimatedHeight = 100;
+        if (y + estimatedHeight > pageHeight - bottomMargin) {
             doc.addPage();
             addHeader();
             y = topMargin;
         }
         
+        // Step title
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
-        doc.setTextColor(0);
+        doc.setTextColor(0, 0, 0);
         doc.text(result.stepName, leftMargin, y);
-        y += 20;
+        y += 18;
+        
+        // AI Suggestion
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        doc.text('AI Suggestion Rationale:', leftMargin, y);
+        y += 12;
         
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
-        doc.setTextColor(80);
-        const lineHeight = 12;
-        y = addTextBlock(stepContent, 9, lineHeight);
-        y += 25;
-    });
-
-    // --- Mitigation Suggestions ---
-    if (mitigation) {
-        if (y + 60 > pageHeight - bottomMargin) { 
-            doc.addPage(); 
-            addHeader(); 
-            y = topMargin; 
-        } else {
-            y += 20;
+        doc.setTextColor(0, 0, 0);
+        y = addTextBlock(result.aiAnalysis, 9, 13, 0);
+        y += 15;
+        
+        // Human Decision
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text('Human Decision:', leftMargin, y);
+        y += 12;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        y = addTextBlock(result.humanDecision, 9, 13, 0);
+        y += 15;
+        
+        // Human Rationale (if exists)
+        if (result.humanRationale) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.text('Human Rationale for Disagreement:', leftMargin, y);
+            y += 12;
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            y = addTextBlock(result.humanRationale, 9, 13, 0);
+            y += 15;
         }
         
+        // Add extra spacing between steps
+        y += 20;
+    });
+
+    // --- Mitigation Suggestions - New Page ---
+    if (mitigation) {
+        doc.addPage(); 
+        addHeader(); 
+        y = topMargin;
+        
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.setTextColor(0);
+        doc.setFontSize(18);
+        doc.setTextColor(0, 0, 0);
         doc.text('Mitigation Suggestions', leftMargin, y);
+        y += 5;
         doc.setDrawColor(200);
         doc.setLineWidth(0.5);
-        doc.line(leftMargin, y + 8, pageWidth - rightMargin, y + 8);
-        y += 35;
+        doc.line(leftMargin, y, pageWidth - rightMargin, y);
+        y += 25;
         
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
-        doc.setTextColor(50);
-        const lineHeight = 14;
-        addTextBlock(mitigation, 10, lineHeight);
+        doc.setTextColor(0, 0, 0);
+        addTextBlock(mitigation, 10, 15, 12);
     }
     
     addFooter();
